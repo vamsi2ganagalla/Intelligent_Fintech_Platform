@@ -3,6 +3,7 @@ package com.fintech.auth.service;
 import com.fintech.auth.dto.AuthResponse;
 import com.fintech.auth.dto.LoginRequest;
 import com.fintech.auth.dto.RegisterRequest;
+import com.fintech.auth.entity.RefreshToken;
 import com.fintech.auth.entity.User;
 import com.fintech.auth.repository.UserRepository;
 import com.fintech.auth.security.JwtUtil;
@@ -19,6 +20,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
 
     public String register(RegisterRequest request) {
 
@@ -50,10 +52,17 @@ public class AuthService {
             throw new RuntimeException("Invalid password");
         }
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
+        String accessToken = jwtUtil.generateToken(user.getEmail(), user.getRole());
 
-        log.info("User logged in: {}", user.getEmail());
+        String refreshToken = refreshTokenService.createRefreshToken(user).getToken();
 
-        return new AuthResponse(token);
+        return new AuthResponse(accessToken, refreshToken);
+    }
+    public AuthResponse refreshAccessToken(String refreshToken) {
+        RefreshToken token = refreshTokenService.verifyToken(refreshToken);
+        User user = token.getUser();
+        String newAccessToken = jwtUtil.generateToken(user.getEmail(), user.getRole());
+        log.info("Access token refreshed for user: {}", user.getEmail());
+        return new AuthResponse(newAccessToken, refreshToken);
     }
 }

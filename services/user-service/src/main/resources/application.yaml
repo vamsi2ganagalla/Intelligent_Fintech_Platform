@@ -1,14 +1,13 @@
 server:
-  port: 8081
+  port: 8082
 
 spring:
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/fintech_auth}
+    url: ${DB_USER_URL:jdbc:postgresql://localhost:5432/fintech_users}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-
   jpa:
     open-in-view: false
     hibernate:
@@ -21,4 +20,3 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:3600000}
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}

@@ -1,0 +1,49 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: transaction-service
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: ${DB_TRANSACTION_URL:jdbc:postgresql://localhost:5432/fintech_transactions}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:3600000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  info:
+    env:
+      enabled: true
+info:
+  app:
+    name: transaction-service
+    version: 0.0.1-SNAPSHOT
+    description: FinTech Transaction Service

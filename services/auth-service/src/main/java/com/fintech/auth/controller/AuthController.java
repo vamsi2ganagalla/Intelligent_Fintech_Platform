@@ -3,49 +3,50 @@ package com.fintech.auth.controller;
 import com.fintech.auth.dto.AuthResponse;
 import com.fintech.auth.dto.LoginRequest;
 import com.fintech.auth.dto.RegisterRequest;
-import com.fintech.auth.entity.RefreshToken;
-import com.fintech.auth.entity.User;
-import com.fintech.auth.security.JwtUtil;
 import com.fintech.auth.service.AuthService;
-import com.fintech.auth.service.RefreshTokenService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
 
+@Slf4j
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
-    private final RefreshTokenService refreshTokenService;
-
 
     @PostMapping("/register")
     public String register(@Valid @RequestBody RegisterRequest request) {
+        log.info("Registration request received for email: {}", request.getEmail());
         return authService.register(request);
     }
 
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+        log.info("Login request received for email: {}", request.getEmail());
         return authService.login(request);
     }
 
     @PostMapping("/refresh")
     public AuthResponse refresh(@RequestParam String refreshToken) {
+        log.info("Token refresh request received");
         return authService.refreshAccessToken(refreshToken);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin")
     public String admin() {
+        log.info("Admin endpoint accessed");
         return "Welcome Admin";
     }
 
     @PreAuthorize("hasRole('USER')")
     @GetMapping("/user")
     public String user() {
+        log.info("User endpoint accessed");
         return "Welcome User";
     }
 }

@@ -2,6 +2,8 @@ server:
   port: 8082
 
 spring:
+  application:
+    name: user-service
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   datasource:
@@ -20,3 +22,29 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:3600000}
+
+# Actuator configuration (Fix #11)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  info:
+    env:
+      enabled: true
+info:
+  app:
+    name: user-service
+    version: 0.0.1-SNAPSHOT
+    description: FinTech User Profile Service

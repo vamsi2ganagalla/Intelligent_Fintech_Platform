@@ -2,6 +2,7 @@ package com.fintech.auth.security;
 
 import com.fintech.auth.entity.User;
 import com.fintech.auth.repository.UserRepository;
+import com.fintech.auth.exception.UserNotFoundException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,10 +36,11 @@ public class JwtFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // Public endpoints
-        if (path.equals("/auth/login") || path.equals("/auth/register") ||
+        if (path.equals("/api/v1/auth/login") || path.equals("/api/v1/auth/register") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
-                path.startsWith("/swagger-resources")) {
+                path.startsWith("/swagger-resources") ||
+                path.startsWith("/actuator")) {
 
             filterChain.doFilter(request, response);
             return;
@@ -62,7 +64,7 @@ public class JwtFilter extends OncePerRequestFilter {
         String role = jwtUtil.extractRole(token);
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User from token not found"));
 
         // Extra safety check
         if (!user.getRole().equals(role)) {

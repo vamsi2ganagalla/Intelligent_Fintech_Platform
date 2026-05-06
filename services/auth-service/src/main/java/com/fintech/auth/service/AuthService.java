@@ -5,6 +5,8 @@ import com.fintech.auth.dto.LoginRequest;
 import com.fintech.auth.dto.RegisterRequest;
 import com.fintech.auth.entity.RefreshToken;
 import com.fintech.auth.entity.User;
+import com.fintech.auth.exception.InvalidCredentialsException;
+import com.fintech.auth.exception.UserAlreadyExistsException;
 import com.fintech.auth.repository.UserRepository;
 import com.fintech.auth.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +27,8 @@ public class AuthService {
     public String register(RegisterRequest request) {
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new RuntimeException("User already exists");
+            log.warn("Registration attempt with existing email: {}", request.getEmail());
+            throw new UserAlreadyExistsException("User with this email already exists");
         }
 
         String hashedPassword = passwordEncoder.encode(request.getPassword());
@@ -37,7 +40,6 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
-
         log.info("User registered: {}", request.getEmail());
 
         return "User registered successfully";
@@ -46,18 +48,23 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> {
+                    log.warn("Login attempt with unknown email: {}", request.getEmail());
+                    return new InvalidCredentialsException("Invalid email or password");
+                });
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid password");
+            log.warn("Login attempt with wrong password for email: {}", request.getEmail());
+            throw new InvalidCredentialsException("Invalid email or password");
         }
 
         String accessToken = jwtUtil.generateToken(user.getEmail(), user.getRole());
-
         String refreshToken = refreshTokenService.createRefreshToken(user).getToken();
 
+        log.info("User logged in: {}", request.getEmail());
         return new AuthResponse(accessToken, refreshToken);
     }
+
     public AuthResponse refreshAccessToken(String refreshToken) {
         RefreshToken token = refreshTokenService.verifyToken(refreshToken);
         User user = token.getUser();

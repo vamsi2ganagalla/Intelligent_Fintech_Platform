@@ -1,0 +1,102 @@
+services:
+
+  # ============================================================
+  # PostgreSQL Database
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: fintech-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"   # Host:Container — exposes Postgres for psql access
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - fintech-network
+
+  # ============================================================
+  # Auth Service
+  # ============================================================
+  auth-service:
+    image: fintech-auth-service:latest
+    container_name: fintech-auth-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_AUTH_URL: ${DB_AUTH_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+    ports:
+      - "8081:8081"
+    networks:
+      - fintech-network
+    restart: unless-stopped
+
+  # ============================================================
+  # User Service
+  # ============================================================
+  user-service:
+    image: fintech-user-service:latest
+    container_name: fintech-user-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_USER_URL: ${DB_USER_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+    ports:
+      - "8082:8082"
+    networks:
+      - fintech-network
+    restart: unless-stopped
+
+  # ============================================================
+  # Transaction Service
+  # ============================================================
+  transaction-service:
+    image: fintech-transaction-service:latest
+    container_name: fintech-transaction-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_TRANSACTION_URL: ${DB_TRANSACTION_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+    ports:
+      - "8083:8083"
+    networks:
+      - fintech-network
+    restart: unless-stopped
+
+# ============================================================
+# Networks
+# ============================================================
+networks:
+  fintech-network:
+    driver: bridge
+
+# ============================================================
+# Volumes
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local

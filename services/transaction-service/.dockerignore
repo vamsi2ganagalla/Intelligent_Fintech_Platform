@@ -1,0 +1,47 @@
+# ============================================================
+# .dockerignore — exclude from Docker build context
+# ============================================================
+
+# Build output (we rebuild inside the container anyway)
+target/
+
+# IDE metadata
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Maven wrapper logs
+.mvn/wrapper/maven-wrapper.jar.lck
+
+# Git history (huge, never needed in image)
+.git/
+.gitignore
+.gitattributes
+
+# Environment files — CRITICAL: never include real secrets
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test reports (generated artifacts)
+**/test-output/
+**/surefire-reports/
+
+# Documentation (not needed at runtime)
+README.md
+HELP.md
+docs/
+
+# Docker files themselves (recursive — don't include in build)
+Dockerfile
+.dockerignore

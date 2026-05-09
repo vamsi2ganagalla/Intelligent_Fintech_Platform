@@ -19,7 +19,9 @@ spring:
     properties:
       hibernate:
         format_sql: false
-
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:3600000}

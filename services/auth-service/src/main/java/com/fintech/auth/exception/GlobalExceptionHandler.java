@@ -3,6 +3,7 @@ package com.fintech.auth.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -53,6 +54,30 @@ public class GlobalExceptionHandler {
                         "errors", errors
                 ));
     }
+
+    /**
+     * Handles malformed JSON request bodies, including:
+     * - Syntactically invalid JSON
+     * - Type mismatches (e.g., string where number expected)
+     * - Unknown fields (when fail-on-unknown-properties is enabled)
+     *
+     * Returns 400 Bad Request without leaking internal field names,
+     * since the request body is the client's responsibility, not a server fault.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<?> handleMalformedJson(HttpMessageNotReadableException ex) {
+        log.warn("Malformed request body: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of(
+                        "timestamp", LocalDateTime.now(),
+                        "status", HttpStatus.BAD_REQUEST.value(),
+                        "error", "Bad Request",
+                        "message", "Request body is malformed or contains unknown fields"
+                ));
+    }
+
+
 
     /**
      * Catch-all for ANY unexpected exception (NPEs, DB failures, bugs, etc.)

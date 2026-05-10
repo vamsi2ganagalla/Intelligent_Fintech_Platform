@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fintech-config
+  namespace: default
+  labels:
+    app.kubernetes.io/part-of: fintech-platform
+data:
+  # PostgreSQL non-secret configuration
+  POSTGRES_USER: fintech_user
+  POSTGRES_DB: postgres
+
+  # Database URLs — note hostname is "postgres" (the K8s Service name)
+  # Same pattern as docker-compose, just different DNS resolution
+  DB_AUTH_URL: jdbc:postgresql://postgres:5432/fintech_auth
+  DB_USER_URL: jdbc:postgresql://postgres:5432/fintech_users
+  DB_TRANSACTION_URL: jdbc:postgresql://postgres:5432/fintech_transactions
+  DB_USERNAME: fintech_user
+
+  # JWT non-secret config
+  JWT_EXPIRATION: "3600000"

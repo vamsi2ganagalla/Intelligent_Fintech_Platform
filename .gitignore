@@ -11,3 +11,6 @@ target/
 
 # Env
 .env
+
+# Kubernetes secrets — never commit real secret values
+infra/k8s/**/secret.yaml

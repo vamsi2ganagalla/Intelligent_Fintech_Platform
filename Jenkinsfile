@@ -212,11 +212,25 @@ pipeline {
                 sh '''
                     set -e
 
-                    echo "=== Health checks ==="
+                    echo "=== Settling delay (allow K8s endpoints to converge) ==="
+                    sleep 20
+
+                    echo "=== Health checks (with retry) ==="
                     for port in 30081 30082 30083; do
-                        status=$(curl -s -o /dev/null -w "%{http_code}" http://${MINIKUBE_IP}:${port}/actuator/health)
-                        echo "Port ${port}: ${status}"
-                        [ "$status" = "200" ] || { echo "Health check failed on port ${port}"; exit 1; }
+                        attempt=0
+                        max_attempts=10
+                        while [ $attempt -lt $max_attempts ]; do
+                            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
+                                http://${MINIKUBE_IP}:${port}/actuator/health || echo "000")
+                            if [ "$status" = "200" ]; then
+                                echo "Port ${port}: 200 ✓ (attempt $((attempt + 1)))"
+                                break
+                            fi
+                            attempt=$((attempt + 1))
+                            echo "Port ${port}: ${status} (attempt ${attempt}/${max_attempts}), retrying in 3s..."
+                            sleep 3
+                        done
+                        [ "$status" = "200" ] || { echo "Health check failed on port ${port} after ${max_attempts} attempts"; exit 1; }
                     done
 
                     echo "=== Test: Register (use build-number-suffixed email for idempotency) ==="

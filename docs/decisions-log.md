@@ -27,3 +27,21 @@ Running log of decisions as they're made. Polish into ADR format on Day 10.
 - **`pg_isready -U fintech_user -d postgres`** (fully explicit): defaults fail in containers (OS user = root, db = matching username)
 - **Liveness `initialDelaySeconds: 60`**: budget for image pull + JVM warmup + first DB connection on cold start
 - **`maxUnavailable: 0`** in rolling updates: zero-downtime deploys when scaled beyond 1 replica (Day 8)
+
+## Day 4 — CVE Remediation
+
+When Trivy stage in build #3 found 3 CRITICAL CVEs in Spring Boot transitive
+dependencies, we did NOT suppress with `.trivyignore`. Instead:
+
+1. **Upgraded Spring Boot 3.3.5 → 3.5.9** (3.3.x reached EOL June 2025;
+   staying on EOL framework = not getting security patches anymore).
+   Resolved CVE-2025-24813 (Tomcat partial PUT RCE) automatically.
+
+2. **Pinned newer transitive versions** via documented override properties:
+   - `<tomcat.version>10.1.53</tomcat.version>` fixes CVE-2026-29145
+   - `<spring-security.version>6.5.9</spring-security.version>` fixes CVE-2026-22732
+
+3. **Verified post-fix**: Trivy rescan reports 0 CRITICAL across both OS and JAR layers.
+
+No suppressions used. Real fix. This is the canonical DevSecOps remediation
+flow: find -> triage -> upgrade -> verify -> document.

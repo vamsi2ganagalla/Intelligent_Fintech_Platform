@@ -24,8 +24,8 @@ spec:
     spec:
       containers:
         - name: transaction-service
-          image: fintech-transaction-service:latest
-          imagePullPolicy: Never
+          image: vamsi124/fintech-transaction-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8083
               name: http

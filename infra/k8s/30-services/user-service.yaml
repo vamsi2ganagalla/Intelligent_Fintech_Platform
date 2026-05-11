@@ -24,8 +24,8 @@ spec:
     spec:
       containers:
         - name: user-service
-          image: fintech-user-service:latest
-          imagePullPolicy: Never
+          image: vamsi124/fintech-user-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8082
               name: http

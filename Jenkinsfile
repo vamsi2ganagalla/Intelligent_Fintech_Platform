@@ -247,7 +247,7 @@ pipeline {
                         -d "{\\"email\\":\\"ci-build-${BUILD_NUMBER}@test.com\\",\\"password\\":\\"TestPass123!\\"}" \
                         | grep -oP '"accessToken":"[^"]+"' | cut -d'"' -f4)
                     [ -n "$TOKEN" ] || { echo "Login did not return a token"; exit 1; }
-                    echo "Token acquired (first 30 chars): ${TOKEN:0:30}..."
+                    echo "Token acquired (first 30 chars): $(echo "$TOKEN" | cut -c1-30)..."
 
                     echo "=== Test: Cross-pod JWT validation ==="
                     USER_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \

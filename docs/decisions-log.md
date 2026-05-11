@@ -45,3 +45,36 @@ dependencies, we did NOT suppress with `.trivyignore`. Instead:
 
 No suppressions used. Real fix. This is the canonical DevSecOps remediation
 flow: find -> triage -> upgrade -> verify -> document.
+
+## Day 4 — Complete (Jenkins CI/CD Pipeline)
+
+End-to-end automated pipeline from git push to verified K8s deployment.
+All 8 stages run on `jenkins` user, native (not containerized).
+
+**Pipeline architecture** (Jenkinsfile at repo root):
+1. Checkout & Inspect — git info, workspace listing
+2. Secrets Scan (Gitleaks) — fails on any committed secret
+3. Build & Unit Test — parallel mvnw clean package for all 3 services, JUnit publish
+4. Build Docker Images — parallel, double-tag :BUILD_NUMBER + :latest
+5. Image Vulnerability Scan (Trivy) — HIGH reported, CRITICAL blocks
+6. Push to Docker Hub — vamsi124/fintech-*-service:N + :latest
+7. Deploy to K8s — kubectl rollout restart + status with 180s timeout
+8. Smoke Test — settling delay + retry health checks + 4 functional contract tests
+
+**4-build maturity arc:**
+- Build #3: caught 3 CRITICAL CVEs in Spring Boot 3.3.5 transitive deps
+- Build #4: caught race between K8s rollout-status (returns at readinessProbe pass)
+  and Spring Boot 3.5.9 fully serving traffic. Added 20s settling delay + per-port retry.
+- Build #5: caught bash-specific ${VAR:start:length} substring failing in Jenkins
+  /bin/sh (dash). Replaced with POSIX $(echo "$VAR" | cut -c1-30).
+- Build #6: All 8 stages green. End-to-end success.
+
+**Jenkins ↔ K8s wiring:**
+- /etc/sudoers.d/jenkins-k8s allows jenkins user to invoke kubectl/minikube/docker
+  as the development user vamsi-ganagalla with NOPASSWD (mode 0440)
+- Critical flag: sudo -u vamsi-ganagalla -H kubectl ... (the -H sets HOME, without
+  which kubectl couldn't find kubeconfig and defaulted to localhost:8080 = Jenkins UI)
+
+**Docker Hub credentials:**
+- Jenkins credential ID: dockerhub-credentials (username vamsi124, token with R+W+D)
+- Referenced in Jenkinsfile via withCredentials wrapper around Stage 6

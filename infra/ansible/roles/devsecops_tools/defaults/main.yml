@@ -1,0 +1,17 @@
+---
+# Defaults for the devsecops_tools role
+
+# Gitleaks — secrets scanner used in Jenkins Stage 2
+# Version pinned to match what Jenkinsfile expects
+gitleaks_version: "8.21.2"
+gitleaks_tarball_url: "https://github.com/gitleaks/gitleaks/releases/download/v{{ gitleaks_version }}/gitleaks_{{ gitleaks_version }}_linux_x64.tar.gz"
+gitleaks_install_path: "/usr/local/bin/gitleaks"
+
+# Trivy — image vulnerability scanner used in Jenkins Stage 5
+# Pinned to match what Jenkinsfile expects (CVE DB freshness matters)
+trivy_version: "0.70.0"
+trivy_deb_url: "https://github.com/aquasecurity/trivy/releases/download/v{{ trivy_version }}/trivy_{{ trivy_version }}_Linux-64bit.deb"
+trivy_deb_local: "/tmp/trivy_{{ trivy_version }}.deb"
+
+# Temp extraction directory for gitleaks tarball
+gitleaks_extract_dir: "/tmp/gitleaks-extract"

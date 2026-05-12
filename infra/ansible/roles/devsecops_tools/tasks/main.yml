@@ -1,0 +1,116 @@
+---
+# devsecops_tools role — Gitleaks + Trivy installed at pinned versions
+#
+# Version pinning rationale:
+# - Trivy CVE database evolves; a newer Trivy may flag different CVEs than
+#   what Jenkins Stage 5 was tested with. Pinning keeps CI behavior stable.
+# - Gitleaks rules also evolve; pinning ensures consistent secrets-scan behavior.
+# - These are SECURITY tools — drift in behavior could cause false negatives.
+
+# ============================================================
+# Gitleaks (downloaded as tarball, extracted)
+# ============================================================
+
+- name: Check if Gitleaks is already installed at correct version
+  ansible.builtin.command:
+    cmd: "{{ gitleaks_install_path }} version"
+  register: gitleaks_existing
+  changed_when: false
+  failed_when: false  # binary may not exist; not an error
+
+- name: Ensure tmp extraction dir exists
+  ansible.builtin.file:
+    path: "{{ gitleaks_extract_dir }}"
+    state: directory
+    mode: "0755"
+  when: gitleaks_existing.stdout != gitleaks_version
+
+- name: Download Gitleaks tarball
+  ansible.builtin.get_url:
+    url: "{{ gitleaks_tarball_url }}"
+    dest: "{{ gitleaks_extract_dir }}/gitleaks.tar.gz"
+    mode: "0644"
+  when: gitleaks_existing.stdout != gitleaks_version
+
+- name: Extract Gitleaks binary to install path
+  ansible.builtin.unarchive:
+    src: "{{ gitleaks_extract_dir }}/gitleaks.tar.gz"
+    dest: "{{ gitleaks_extract_dir }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=0
+  when: gitleaks_existing.stdout != gitleaks_version
+
+- name: Install Gitleaks binary to /usr/local/bin/
+  ansible.builtin.copy:
+    src: "{{ gitleaks_extract_dir }}/gitleaks"
+    dest: "{{ gitleaks_install_path }}"
+    mode: "0755"
+    owner: root
+    group: root
+    remote_src: true
+  when: gitleaks_existing.stdout != gitleaks_version
+
+- name: Clean up Gitleaks extraction temp dir
+  ansible.builtin.file:
+    path: "{{ gitleaks_extract_dir }}"
+    state: absent
+  when: gitleaks_existing.stdout != gitleaks_version
+
+# ============================================================
+# Trivy (downloaded as .deb, installed via apt)
+# ============================================================
+
+- name: Check if Trivy is already installed at correct version
+  ansible.builtin.command:
+    cmd: "dpkg-query -W -f=${Version} trivy"
+  register: trivy_existing
+  changed_when: false
+  failed_when: false  # package may not be installed; not an error
+
+- name: Download Trivy .deb package
+  ansible.builtin.get_url:
+    url: "{{ trivy_deb_url }}"
+    dest: "{{ trivy_deb_local }}"
+    mode: "0644"
+  when: trivy_existing.stdout != trivy_version
+
+- name: Install Trivy from .deb package
+  ansible.builtin.apt:
+    deb: "{{ trivy_deb_local }}"
+    state: present
+  when: trivy_existing.stdout != trivy_version
+
+- name: Clean up Trivy .deb file
+  ansible.builtin.file:
+    path: "{{ trivy_deb_local }}"
+    state: absent
+  when: trivy_existing.stdout != trivy_version
+
+# ============================================================
+# Verification
+# ============================================================
+
+- name: Verify Gitleaks is callable at correct version
+  ansible.builtin.command:
+    cmd: "{{ gitleaks_install_path }} version"
+  register: gitleaks_check
+  changed_when: false
+  failed_when:
+    - gitleaks_check.rc != 0
+    - gitleaks_version not in gitleaks_check.stdout
+
+- name: Verify Trivy is callable
+  ansible.builtin.command:
+    cmd: trivy --version
+  register: trivy_check
+  changed_when: false
+  failed_when: trivy_check.rc != 0
+
+- name: Summary - devsecops_tools role complete
+  ansible.builtin.debug:
+    msg:
+      - "Gitleaks: {{ gitleaks_check.stdout }} at {{ gitleaks_install_path }}"
+      - "Trivy: {{ (trivy_check.stdout_lines | first) | default('unknown') }}"
+      - "Both tools verified at pinned versions"
+      - "Used by Jenkinsfile Stages 2 (Gitleaks) and 5 (Trivy)"

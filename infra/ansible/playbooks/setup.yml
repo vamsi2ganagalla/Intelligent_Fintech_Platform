@@ -24,4 +24,7 @@
     - role: jenkins
       tags: [jenkins, ci]
 
-    # Phases 5.6-5.8 will add: devsecops_tools, app_deploy
+    - role: devsecops_tools
+      tags: [devsecops, security]
+
+    # Phases 5.7-5.8 will add: app_deploy, full orchestration

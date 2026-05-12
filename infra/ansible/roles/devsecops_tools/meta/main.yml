@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: vamsi2ganagalla
+  description: Install pinned versions of Gitleaks (secrets scan) and Trivy (image CVE scan)
+  company: CSE 816 academic project
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+  galaxy_tags:
+    - security
+    - devsecops
+    - scanner
+
+dependencies:
+  - role: common

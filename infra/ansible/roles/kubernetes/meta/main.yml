@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: vamsi2ganagalla
+  description: Install kubectl (apt repo) and minikube (binary) for local cluster work
+  company: CSE 816 academic project
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+  galaxy_tags:
+    - kubernetes
+    - k8s
+    - minikube
+
+dependencies:
+  - role: common

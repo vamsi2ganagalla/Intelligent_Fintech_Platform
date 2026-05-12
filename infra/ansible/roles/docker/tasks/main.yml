@@ -15,12 +15,17 @@
     state: directory
     mode: "0755"
 
-- name: Download Docker apt GPG key
+- name: Download Docker apt GPG key (ASCII-armored from upstream)
   ansible.builtin.get_url:
     url: "{{ docker_apt_key_url }}"
-    dest: "{{ docker_apt_keyring_path }}"
+    dest: "{{ docker_apt_keyring_path }}.armored"
     mode: "0644"
     force: false  # don't re-download if file exists
+
+- name: Convert Docker apt key to dearmored binary format (apt signed-by requires binary)
+  ansible.builtin.shell:
+    cmd: "gpg --dearmor --batch --yes -o {{ docker_apt_keyring_path }} {{ docker_apt_keyring_path }}.armored"
+    creates: "{{ docker_apt_keyring_path }}"
 
 - name: Add Docker apt repository
   ansible.builtin.apt_repository:

@@ -15,8 +15,7 @@
     - role: docker
       tags: [docker]
 
-    # Phase 5.3 will add:
-    # - role: kubernetes
-    #   tags: [kubernetes, k8s]
+    - role: kubernetes
+      tags: [kubernetes, k8s]
 
-    # ... and so on through Phase 5.8
+    # Phases 5.4-5.8 will add: java_maven, jenkins, devsecops_tools, app_deploy

@@ -8,7 +8,8 @@ project_user: "{{ ansible_user_id }}"
 # Pinned versions (reproducibility — don't let apt give us 'latest')
 docker_compose_version: "2.29.2"
 minikube_version: "v1.38.1"
-kubectl_version: "v1.31.0"
+kubectl_version: "v1.35.3"
+kubectl_apt_minor_version: "v1.35"
 java_version: "17"
 maven_version: "3.9.9"
 jenkins_apt_key_url: "https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key"
@@ -21,4 +22,4 @@ minikube_cpus: "2"
 minikube_driver: "docker"
 
 # Timezone
-system_timezone: "Etc/UTC"
+system_timezone: "Asia/Kolkata"

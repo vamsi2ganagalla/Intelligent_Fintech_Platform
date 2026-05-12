@@ -1,0 +1,11 @@
+---
+# Defaults for the kubernetes role
+
+# kubectl — installed via official Kubernetes apt repo
+kubernetes_apt_key_url: "https://pkgs.k8s.io/core:/stable:/{{ kubectl_apt_minor_version }}/deb/Release.key"
+kubernetes_apt_keyring_path: "/etc/apt/keyrings/kubernetes-apt-keyring.gpg"
+kubernetes_apt_repo: "deb [signed-by={{ kubernetes_apt_keyring_path }}] https://pkgs.k8s.io/core:/stable:/{{ kubectl_apt_minor_version }}/deb/ /"
+
+# minikube — installed via direct binary download (no apt repo exists)
+minikube_binary_url: "https://github.com/kubernetes/minikube/releases/download/{{ minikube_version }}/minikube-linux-amd64"
+minikube_install_path: "/usr/local/bin/minikube"

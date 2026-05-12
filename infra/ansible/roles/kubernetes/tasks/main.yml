@@ -1,0 +1,63 @@
+---
+# kubernetes role — install kubectl (apt) and minikube (binary)
+
+- name: Ensure /etc/apt/keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Download Kubernetes apt GPG key
+  ansible.builtin.get_url:
+    url: "{{ kubernetes_apt_key_url }}"
+    dest: "{{ kubernetes_apt_keyring_path }}.armored"
+    mode: "0644"
+    force: false
+
+- name: Convert Kubernetes apt key to dearmored format
+  ansible.builtin.shell:
+    cmd: "gpg --dearmor --batch --yes -o {{ kubernetes_apt_keyring_path }} {{ kubernetes_apt_keyring_path }}.armored"
+    creates: "{{ kubernetes_apt_keyring_path }}"
+
+- name: Add Kubernetes apt repository
+  ansible.builtin.apt_repository:
+    repo: "{{ kubernetes_apt_repo }}"
+    state: present
+    filename: kubernetes
+    update_cache: true
+
+- name: Install kubectl from apt
+  ansible.builtin.apt:
+    name: kubectl
+    state: present
+
+- name: Download minikube binary
+  ansible.builtin.get_url:
+    url: "{{ minikube_binary_url }}"
+    dest: "{{ minikube_install_path }}"
+    mode: "0755"
+    owner: root
+    group: root
+    force: false  # don't re-download on every run
+
+- name: Verify kubectl is callable
+  ansible.builtin.command:
+    cmd: kubectl version --client
+  register: kubectl_check
+  changed_when: false  # read-only check
+  failed_when: kubectl_check.rc != 0
+
+- name: Verify minikube is callable
+  ansible.builtin.command:
+    cmd: minikube version
+  register: minikube_check
+  changed_when: false
+  failed_when: minikube_check.rc != 0
+
+- name: Summary - kubernetes role complete
+  ansible.builtin.debug:
+    msg:
+      - "kubectl: installed via apt ({{ kubectl_apt_minor_version }} minor channel)"
+      - "minikube: binary at {{ minikube_install_path }}"
+      - "Both tools verified callable"
+      - "Cluster start is NOT done by this role (operational choice)"

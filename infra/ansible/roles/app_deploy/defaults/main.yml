@@ -1,0 +1,25 @@
+---
+# Defaults for the app_deploy role
+
+# Project paths (resolved relative to repo root)
+repo_root: "{{ playbook_dir }}/../../.."
+k8s_manifests_dir: "{{ repo_root }}/infra/k8s"
+
+# Dev user — runs kubectl with this user's kubeconfig
+app_deploy_user: "vamsi-ganagalla"
+
+# Minikube cluster sizing (matches manual setup)
+minikube_memory: "4096"
+minikube_cpus: "2"
+minikube_driver: "docker"
+
+# Where to render the templated secret (NEVER inside the repo — gitignored
+# locations are easy to forget; /tmp is unambiguous)
+rendered_secret_path: "/tmp/fintech-secret-rendered.yaml"
+
+# Health endpoint addresses (NodePort on minikube IP)
+minikube_ip_command: "minikube ip"
+service_health_ports:
+  - 30081  # auth-service
+  - 30082  # user-service
+  - 30083  # transaction-service

@@ -1,0 +1,149 @@
+---
+# app_deploy role — render templated manifests and apply to local minikube
+#
+# Design notes:
+# - kubectl is invoked as the dev user (vamsi-ganagalla) so kubeconfig is correct
+# - Secrets templated from vault, rendered to /tmp (gitignore irrelevant since
+#   /tmp is outside repo tree entirely)
+# - Manifests applied in dependency order: configmap -> secrets -> postgres -> services
+# - Idempotency: kubectl apply is no-op when manifests match cluster state
+
+# ============================================================
+# Step 1: Cluster availability check
+# ============================================================
+
+- name: Verify kubectl is callable as dev user
+  ansible.builtin.command:
+    cmd: "kubectl version --client --output=yaml"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  register: kubectl_check
+  changed_when: false
+  failed_when: kubectl_check.rc != 0
+
+- name: Check if minikube cluster is currently running
+  ansible.builtin.command:
+    cmd: "minikube status --format={% raw %}{{.Host}}{% endraw %}"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  register: minikube_status
+  changed_when: false
+  failed_when: false  # may return non-zero if cluster doesn't exist yet
+
+- name: Start minikube cluster if not running
+  ansible.builtin.command:
+    cmd: "minikube start --driver={{ minikube_driver }} --memory={{ minikube_memory }} --cpus={{ minikube_cpus }}"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  when: "'Running' not in minikube_status.stdout"
+  register: minikube_start_result
+
+# ============================================================
+# Step 2: Render templated secret (vault values -> tmp file)
+# ============================================================
+
+- name: Render Kubernetes Secret from vault values
+  ansible.builtin.template:
+    src: secret.yaml.j2
+    dest: "{{ rendered_secret_path }}"
+    mode: "0600"
+    owner: "{{ app_deploy_user }}"
+    group: "{{ app_deploy_user }}"
+
+# ============================================================
+# Step 3: Apply manifests in dependency order
+# ============================================================
+
+- name: Apply 10-config ConfigMap (plaintext, no templating)
+  ansible.builtin.command:
+    cmd: "kubectl apply -f {{ k8s_manifests_dir }}/10-config/configmap.yaml"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  register: configmap_apply
+  changed_when: "'configured' in configmap_apply.stdout or 'created' in configmap_apply.stdout"
+
+- name: Apply rendered Secret
+  ansible.builtin.command:
+    cmd: "kubectl apply -f {{ rendered_secret_path }}"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  register: secret_apply
+  changed_when: "'configured' in secret_apply.stdout or 'created' in secret_apply.stdout"
+
+- name: Apply 20-postgres manifests (init-db ConfigMap + Service + StatefulSet)
+  ansible.builtin.command:
+    cmd: "kubectl apply -f {{ k8s_manifests_dir }}/20-postgres/"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  register: postgres_apply
+  changed_when: "'configured' in postgres_apply.stdout or 'created' in postgres_apply.stdout"
+
+- name: Apply 30-services manifests (3 microservices)
+  ansible.builtin.command:
+    cmd: "kubectl apply -f {{ k8s_manifests_dir }}/30-services/"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  register: services_apply
+  changed_when: "'configured' in services_apply.stdout or 'created' in services_apply.stdout"
+
+# ============================================================
+# Step 4: Cleanup rendered secret (we don't want plaintext lingering on disk)
+# ============================================================
+
+- name: Remove rendered secret file (don't leave plaintext on disk)
+  ansible.builtin.file:
+    path: "{{ rendered_secret_path }}"
+    state: absent
+
+# ============================================================
+# Step 5: Smoke test — wait for pods, verify health
+# ============================================================
+
+- name: Wait for postgres StatefulSet to have ready replicas
+  ansible.builtin.command:
+    cmd: "kubectl wait --for=condition=Ready pod/postgres-0 --timeout=120s"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  register: postgres_ready
+  changed_when: false
+
+- name: Wait for service Deployments to have ready replicas
+  ansible.builtin.command:
+    cmd: "kubectl wait --for=condition=Available deployment/{{ item }} --timeout=120s"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  loop:
+    - auth-service
+    - user-service
+    - transaction-service
+  changed_when: false
+
+- name: Get minikube IP for health endpoint testing
+  ansible.builtin.command:
+    cmd: "minikube ip"
+  become: true
+  become_user: "{{ app_deploy_user }}"
+  register: minikube_ip_result
+  changed_when: false
+
+- name: Verify health endpoints (HTTP 200 expected)
+  ansible.builtin.uri:
+    url: "http://{{ minikube_ip_result.stdout | trim }}:{{ item }}/actuator/health"
+    method: GET
+    status_code: 200
+    timeout: 10
+  loop: "{{ service_health_ports }}"
+  register: health_results
+
+# ============================================================
+# Step 6: Summary
+# ============================================================
+
+- name: Summary - app_deploy role complete
+  ansible.builtin.debug:
+    msg:
+      - "Cluster: minikube running on {{ minikube_ip_result.stdout | trim }}"
+      - "ConfigMap, Secret, Postgres StatefulSet, and 3 services applied"
+      - "Health checks: {{ health_results.results | length }} services responded with 200"
+      - "Vault: secrets decrypted via group_vars/all/vault.yml"
+      - "Secret render path /tmp/fintech-secret-rendered.yaml is cleaned up"

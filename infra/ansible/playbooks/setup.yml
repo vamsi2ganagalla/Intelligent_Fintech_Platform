@@ -27,4 +27,7 @@
     - role: devsecops_tools
       tags: [devsecops, security]
 
-    # Phases 5.7-5.8 will add: app_deploy, full orchestration
+    - role: app_deploy
+      tags: [deploy, app]
+
+    # Phase 5.8 will finalize the orchestration setup

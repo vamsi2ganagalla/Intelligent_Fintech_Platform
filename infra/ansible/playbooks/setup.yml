@@ -12,9 +12,8 @@
     - role: common
       tags: [common, base]
 
-    # Phase 5.2 will add:
-    # - role: docker
-    #   tags: [docker]
+    - role: docker
+      tags: [docker]
 
     # Phase 5.3 will add:
     # - role: kubernetes

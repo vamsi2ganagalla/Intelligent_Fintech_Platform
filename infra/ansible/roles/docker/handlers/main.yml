@@ -1,0 +1,10 @@
+---
+# Handlers run ONLY when notified by a changed task
+# This means: if daemon.json doesn't change, we don't restart docker
+
+- name: Restart docker service
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+    daemon_reload: true
+  listen: "restart docker"

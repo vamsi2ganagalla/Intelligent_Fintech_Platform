@@ -1,0 +1,26 @@
+---
+# Defaults for the docker role
+
+# Dev user to add to the docker group (so they can run docker without sudo)
+docker_dev_user: "vamsi-ganagalla"
+
+# Docker apt repo
+docker_apt_key_url: "https://download.docker.com/linux/ubuntu/gpg"
+docker_apt_keyring_path: "/etc/apt/keyrings/docker.gpg"
+docker_apt_repo: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') }} signed-by={{ docker_apt_keyring_path }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+
+# Packages to install from Docker apt repo
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+# daemon.json — production hygiene: rotate logs to prevent disk-fill
+docker_daemon_config:
+  log-driver: json-file
+  log-opts:
+    max-size: "10m"
+    max-file: "3"
+  live-restore: true  # containers keep running across docker daemon restart

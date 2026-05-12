@@ -1,0 +1,52 @@
+---
+# java_maven role — install OpenJDK 17 and Maven
+#
+# Important context:
+# - Java 17 is REQUIRED for Spring Boot 3.5.x runtime + builds
+# - Maven from apt is CONVENIENCE — actual build pipeline uses ./mvnw (Maven Wrapper)
+#   which downloads Maven 3.9.x per-project automatically
+# - System mvn is only for ad-hoc developer use, not part of the build contract
+
+- name: Install OpenJDK 17 (headless — no GUI libraries)
+  ansible.builtin.apt:
+    name: "{{ java_package }}"
+    state: present
+
+- name: Configure JAVA_HOME system-wide via /etc/profile.d/
+  ansible.builtin.copy:
+    content: |
+      # JAVA_HOME set by Ansible java_maven role
+      # Picked up by all login shells
+      export JAVA_HOME={{ java_home_path }}
+      export PATH=$JAVA_HOME/bin:$PATH
+    dest: "{{ java_profile_script }}"
+    mode: "0644"
+    owner: root
+    group: root
+
+- name: Install Maven (convenience tool — actual builds use ./mvnw)
+  ansible.builtin.apt:
+    name: "{{ maven_package }}"
+    state: present
+
+- name: Verify java is callable
+  ansible.builtin.command:
+    cmd: java -version
+  register: java_check
+  changed_when: false
+  failed_when: java_check.rc != 0
+
+- name: Verify mvn is callable
+  ansible.builtin.command:
+    cmd: mvn --version
+  register: mvn_check
+  changed_when: false
+  failed_when: mvn_check.rc != 0
+
+- name: Summary - java_maven role complete
+  ansible.builtin.debug:
+    msg:
+      - "Java: {{ (java_check.stderr_lines | first) | default('unknown') }}"
+      - "Maven (system): {{ (mvn_check.stdout_lines | first) | default('unknown') }}"
+      - "JAVA_HOME: {{ java_home_path }} (in /etc/profile.d/java.sh)"
+      - "Note: Actual builds use ./mvnw wrapper, NOT system mvn"

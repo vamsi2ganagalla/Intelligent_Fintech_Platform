@@ -18,4 +18,7 @@
     - role: kubernetes
       tags: [kubernetes, k8s]
 
-    # Phases 5.4-5.8 will add: java_maven, jenkins, devsecops_tools, app_deploy
+    - role: java_maven
+      tags: [java, maven]
+
+    # Phases 5.5-5.8 will add: jenkins, devsecops_tools, app_deploy

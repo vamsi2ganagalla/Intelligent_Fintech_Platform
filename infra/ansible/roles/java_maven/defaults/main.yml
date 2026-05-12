@@ -1,0 +1,13 @@
+---
+# Defaults for the java_maven role
+
+# OpenJDK 17 — headless variant (no AWT/Swing — smaller, server-appropriate)
+# Spring Boot 3.5.x requires Java 17 minimum
+java_package: "openjdk-17-jdk-headless"
+java_home_path: "/usr/lib/jvm/java-17-openjdk-amd64"
+java_profile_script: "/etc/profile.d/java.sh"
+
+# Maven from apt — CONVENIENCE ONLY
+# The actual build flow uses ./mvnw (Maven Wrapper) which downloads its own
+# Maven 3.9.x per-project. System mvn is only for ad-hoc developer commands.
+maven_package: "maven"

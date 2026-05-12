@@ -14,3 +14,7 @@ target/
 
 # Kubernetes secrets — never commit real secret values
 infra/k8s/**/secret.yaml
+
+# Ansible vault password (NEVER commit)
+.vault-password
+infra/ansible/.vault-password

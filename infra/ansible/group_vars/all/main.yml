@@ -23,3 +23,11 @@ minikube_driver: "docker"
 
 # Timezone
 system_timezone: "Asia/Kolkata"
+
+# ============================================================
+# Vault variable mapping
+# Roles reference these "public" names; values resolve from vault.yml
+# ============================================================
+postgres_password: "{{ vault_postgres_password }}"
+db_password: "{{ vault_db_password }}"
+jwt_secret: "{{ vault_jwt_secret }}"

@@ -1,0 +1,24 @@
+---
+# Defaults for the jenkins role
+
+# Jenkins apt repo (LTS channel — stable, recommended for production)
+jenkins_apt_key_url: "https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key"
+jenkins_apt_keyring_path: "/etc/apt/keyrings/jenkins.gpg"
+jenkins_apt_repo: "deb [signed-by={{ jenkins_apt_keyring_path }}] https://pkg.jenkins.io/debian-stable binary/"
+
+# Jenkins package
+jenkins_package: "jenkins"
+jenkins_service_name: "jenkins"
+
+# Jenkins HTTP port (the default Jenkins listens on)
+jenkins_http_port: 8080
+
+# Dev user that Jenkins is allowed to sudo as (Day 4 wiring)
+jenkins_sudo_target_user: "vamsi-ganagalla"
+
+# Sudoers file content — matches the Day 4 wiring exactly
+jenkins_sudoers_content: |
+  # Allow Jenkins to run K8s tooling as the developer user
+  # Scoped to specific binaries only — not full sudo
+  # Used by the Jenkins CI pipeline to deploy to local minikube cluster
+  jenkins ALL=({{ jenkins_sudo_target_user }}) NOPASSWD: /usr/local/bin/kubectl, /usr/local/bin/minikube, /usr/bin/docker

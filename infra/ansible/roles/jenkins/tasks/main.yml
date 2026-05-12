@@ -1,0 +1,124 @@
+---
+# jenkins role — install Jenkins LTS + wire sudoers for K8s deploy
+#
+# Critical safety properties:
+# - state: started (NOT restarted) — never disrupts running Jenkins
+# - NO touch to /var/lib/jenkins/ (job configs, build history, plugins)
+# - Sudoers content matches the Day 4 wiring exactly
+# - apt install is no-op if Jenkins is already at the LTS channel version
+
+- name: Install Jenkins apt prerequisites
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+
+- name: Ensure /etc/apt/keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+# Note: The upstream Jenkins key URL has rotated. Rather than fight URL drift,
+# we use the system-installed key already trusted by the running Jenkins.
+# On a fresh VM, the package install will fail without a key — but the role
+# can be re-run after manually placing the key, OR we fall back to upstream
+# (commented variant below).
+- name: Copy Jenkins GPG key from system trusted store
+  ansible.builtin.copy:
+    src: /usr/share/keyrings/jenkins.gpg
+    dest: "{{ jenkins_apt_keyring_path }}"
+    remote_src: true  # source is on the target machine, not the controller
+    mode: "0644"
+    owner: root
+    group: root
+
+# Best-effort: Jenkins upstream key rotation state is currently inconsistent.
+# If apt repo add fails, log a warning and continue — Jenkins package may already
+# be installed (as is the case on Vamsi's dev machine, where Jenkins 2.541.2 LTS
+# was installed prior to Day 5). For fresh VM deployment (Phase 5.9), this will
+# need to be fixed by either: (a) waiting for upstream key rotation to settle,
+# (b) using a vendored key file in the role's files/ directory, or
+# (c) installing Jenkins via direct .deb download.
+- name: Add Jenkins LTS apt repository (best-effort)
+  ansible.builtin.apt_repository:
+    repo: "{{ jenkins_apt_repo }}"
+    state: present
+    filename: jenkins
+    update_cache: true
+  register: jenkins_repo_result
+  ignore_errors: true
+  failed_when: false
+
+- name: Warn if Jenkins apt repo could not be added
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Jenkins apt repo could not be added (likely upstream key issue).
+      The 'jenkins' package install will be skipped. If Jenkins is already
+      installed (check 'dpkg -l jenkins'), the role continues with the
+      sudoers + service management tasks. Otherwise, install Jenkins manually
+      before re-running the role.
+  when: jenkins_repo_result is failed or (jenkins_repo_result.changed is defined and jenkins_repo_result.failed | default(false))
+
+- name: Check if Jenkins package is already installed
+  ansible.builtin.command:
+    cmd: dpkg-query -W -f='${Status}\n' jenkins
+  register: jenkins_pkg_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Jenkins package (skipped if apt repo failed AND not already installed)
+  ansible.builtin.apt:
+    name: "{{ jenkins_package }}"
+    state: present
+  when:
+    - jenkins_repo_result is not failed
+    - "'install ok installed' not in jenkins_pkg_check.stdout"
+
+- name: Add jenkins user to docker group (so Jenkins can run docker without sudo)
+  ansible.builtin.user:
+    name: jenkins
+    groups: docker
+    append: true
+
+- name: Configure sudoers for Jenkins K8s deploy
+  ansible.builtin.copy:
+    content: "{{ jenkins_sudoers_content }}"
+    dest: /etc/sudoers.d/jenkins-k8s
+    mode: "0440"  # CRITICAL — sudoers files MUST be 0440 or visudo rejects them
+    owner: root
+    group: root
+    validate: /usr/sbin/visudo -cf %s  # syntax-check before writing
+
+- name: Enable and start Jenkins systemd service
+  ansible.builtin.systemd:
+    name: "{{ jenkins_service_name }}"
+    enabled: true
+    state: started  # CRITICAL — NOT restarted; doesn't disrupt running Jenkins
+
+- name: Wait for Jenkins web UI to respond on port {{ jenkins_http_port }}
+  ansible.builtin.wait_for:
+    port: "{{ jenkins_http_port }}"
+    host: localhost
+    timeout: 60
+    delay: 2
+
+- name: Verify Jenkins HTTP endpoint returns OK
+  ansible.builtin.uri:
+    url: "http://localhost:{{ jenkins_http_port }}/login"
+    method: GET
+    status_code: 200
+    return_content: false
+  register: jenkins_check
+  changed_when: false
+
+- name: Summary - jenkins role complete
+  ansible.builtin.debug:
+    msg:
+      - "Jenkins service: enabled and running"
+      - "Web UI: http://localhost:{{ jenkins_http_port }}/ (verified)"
+      - "Sudoers: /etc/sudoers.d/jenkins-k8s (mode 0440)"
+      - "User jenkins in docker group: yes"
+      - "Note: JENKINS_HOME (/var/lib/jenkins/) and plugins NOT touched"

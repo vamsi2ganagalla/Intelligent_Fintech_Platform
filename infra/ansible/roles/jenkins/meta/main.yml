@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  author: vamsi2ganagalla
+  description: Install Jenkins LTS + wire it to run K8s tooling via sudoers
+  company: CSE 816 academic project
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+  galaxy_tags:
+    - jenkins
+    - ci
+
+dependencies:
+  - role: common
+  - role: docker
+  - role: java_maven

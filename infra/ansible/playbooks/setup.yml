@@ -21,4 +21,7 @@
     - role: java_maven
       tags: [java, maven]
 
-    # Phases 5.5-5.8 will add: jenkins, devsecops_tools, app_deploy
+    - role: jenkins
+      tags: [jenkins, ci]
+
+    # Phases 5.6-5.8 will add: devsecops_tools, app_deploy

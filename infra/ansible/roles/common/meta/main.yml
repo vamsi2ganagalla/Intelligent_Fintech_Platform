@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: vamsi2ganagalla
+  description: Base system setup — apt update, base packages, timezone
+  company: CSE 816 academic project
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+  galaxy_tags:
+    - system
+    - base
+
+dependencies: []

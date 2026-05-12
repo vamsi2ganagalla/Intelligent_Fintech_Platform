@@ -1,0 +1,43 @@
+---
+# Common role — base system setup
+
+- name: Verify Ubuntu OS family
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == "Debian"
+      - ansible_distribution == "Ubuntu"
+    fail_msg: "This playbook only supports Ubuntu (Debian family). Detected: {{ ansible_distribution }}"
+    success_msg: "Detected supported OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+- name: Verify minimum memory threshold
+  ansible.builtin.assert:
+    that:
+      - ansible_memtotal_mb >= common_min_memory_mb
+    fail_msg: >-
+      System has only {{ ansible_memtotal_mb }}MB RAM, minimum {{ common_min_memory_mb }}MB required.
+      The minikube cluster + Jenkins + Postgres will not fit.
+    success_msg: "Memory check passed ({{ ansible_memtotal_mb }}MB available)"
+
+- name: Update apt cache (refresh if older than configured threshold)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ common_apt_cache_valid_time }}"
+  changed_when: false  # apt cache updates are not "changes" we care to report
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ common_base_packages }}"
+    state: present
+  register: pkg_install_result
+
+- name: Set system timezone (from group_vars/all.yml)
+  community.general.timezone:
+    name: "{{ system_timezone }}"
+  register: timezone_result
+
+- name: Summary — common role complete
+  ansible.builtin.debug:
+    msg:
+      - "Base packages: {{ pkg_install_result.changed | ternary('CHANGED', 'OK (no changes)') }}"
+      - "Timezone: {{ timezone_result.changed | ternary('CHANGED', 'OK (already set)') }}"
+      - "System ready for next role"

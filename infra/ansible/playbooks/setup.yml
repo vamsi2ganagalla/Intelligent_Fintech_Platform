@@ -1,0 +1,23 @@
+---
+# Master playbook — runs all roles in order
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/setup.yml --ask-become-pass
+# (Phase 5.1 only includes the common role — more added in subsequent phases)
+
+- name: Provision Intelligent FinTech Platform infrastructure
+  hosts: local
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: common
+      tags: [common, base]
+
+    # Phase 5.2 will add:
+    # - role: docker
+    #   tags: [docker]
+
+    # Phase 5.3 will add:
+    # - role: kubernetes
+    #   tags: [kubernetes, k8s]
+
+    # ... and so on through Phase 5.8

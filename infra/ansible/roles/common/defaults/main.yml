@@ -1,0 +1,25 @@
+---
+# Default variables for the common role
+
+# Base packages required for any subsequent automation
+common_base_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - unzip
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - python3-pip
+  - apt-transport-https
+  - net-tools
+  - dnsutils
+
+# How long apt cache is considered "fresh" (3600s = 1 hour)
+common_apt_cache_valid_time: 3600
+
+# Minimum system requirements (sanity check before proceeding)
+common_min_memory_mb: 4096
+common_min_disk_gb: 20

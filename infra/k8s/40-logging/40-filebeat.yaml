@@ -1,0 +1,160 @@
+# Phase 6.6 — Filebeat DaemonSet (final working configuration)
+#
+# Architecture: container stdout -> /var/log/containers/*.log -> Filebeat -> ES direct.
+# Path B simplification: no Logstash (would have added overhead at 4GB minikube RAM).
+#
+# Key implementation notes (hard-won — see Day 6 decisions log):
+#   - We pre-create the ES index template manually as a data-stream template;
+#     setup.template.enabled: false stops Filebeat from overwriting it.
+#   - decode_json_fields with `when` regex parses Spring JSON without breaking
+#     non-JSON Postgres lines.
+#   - overwrite_keys: false avoids ES rejecting docs (Spring nanosecond @timestamp
+#     would clash with Filebeat millisecond @timestamp).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  namespace: logging
+  labels:
+    app: filebeat
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+  labels:
+    app: filebeat
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "pods", "nodes"]
+    verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+subjects:
+  - kind: ServiceAccount
+    name: filebeat
+    namespace: logging
+roleRef:
+  kind: ClusterRole
+  name: filebeat
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: logging
+  labels:
+    app: filebeat
+data:
+  filebeat.yml: |
+    filebeat.inputs:
+      - type: container
+        paths:
+          - /var/log/containers/*_default_*.log
+        processors:
+          - add_kubernetes_metadata:
+              host: ${NODE_NAME}
+              matchers:
+                - logs_path:
+                    logs_path: /var/log/containers/
+
+    processors:
+      # Decode JSON-formatted message field, only when line starts with '{'
+      # (Postgres plain-text lines pass through unchanged.)
+      # overwrite_keys: false avoids @timestamp clash (Spring nanosecond vs ES millisecond)
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: false
+          add_error_key: false
+          when:
+            regexp:
+              message: "^\\s*\\{"
+
+      - drop_fields:
+          fields: ["json.@timestamp", "@version", "json.@version", "agent", "ecs", "input", "log.offset"]
+          ignore_missing: true
+
+    output.elasticsearch:
+      hosts: ["http://elasticsearch.logging.svc.cluster.local:9200"]
+      index: "fintech-logs-%{+yyyy.MM.dd}"
+
+    # Template is pre-created in ES as a data-stream template.
+    # Disable Filebeat-managed template/ILM so it can't overwrite ours.
+    setup.ilm.enabled: false
+    setup.template.enabled: false
+
+    logging.level: info
+    logging.to_files: false
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: filebeat
+  namespace: logging
+  labels:
+    app: filebeat
+spec:
+  selector:
+    matchLabels:
+      app: filebeat
+  template:
+    metadata:
+      labels:
+        app: filebeat
+    spec:
+      serviceAccountName: filebeat
+      terminationGracePeriodSeconds: 30
+      hostNetwork: false
+      containers:
+        - name: filebeat
+          image: docker.elastic.co/beats/filebeat:8.13.4
+          args: ["-c", "/etc/filebeat.yml", "-e"]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ELASTICSEARCH_HOST
+              value: "elasticsearch.logging.svc.cluster.local"
+            - name: ELASTICSEARCH_PORT
+              value: "9200"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/filebeat.yml
+              subPath: filebeat.yml
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: varlogcontainers
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: filebeat-config
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: varlogcontainers
+          hostPath:
+            path: /var/log/containers
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods

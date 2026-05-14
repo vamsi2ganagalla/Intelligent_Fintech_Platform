@@ -19,3 +19,6 @@ data:
 
   # JWT non-secret config
   JWT_EXPIRATION: "3600000"
+
+  # Activate Spring prod profile in K8s — enables JSON logging for Filebeat
+  SPRING_PROFILES_ACTIVE: "prod"

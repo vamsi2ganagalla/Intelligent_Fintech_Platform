@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="false">
+
+    <!-- ================================================================== -->
+    <!-- Profile-aware logging: text for local dev, JSON for prod/K8s       -->
+    <!-- ================================================================== -->
+
+    <!-- TEXT appender — human-readable, used for local profile -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- JSON appender — one JSON line per log record, used for prod/K8s -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- MDC keys populated by CorrelationIdFilter (Phase 6.4) -->
+            <includeMdcKeyName>correlationId</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+
+            <!-- Static service label — plain JSON, no property substitution -->
+            <customFields>{"service":"transaction-service"}</customFields>
+
+            <includeCallerData>false</includeCallerData>
+
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+                <message>message</message>
+                <logger>logger</logger>
+                <thread>thread</thread>
+                <level>level</level>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
+        </encoder>
+    </appender>
+
+    <!-- prod profile: JSON output for Filebeat/Kibana -->
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+        <logger name="com.fintech" level="DEBUG" additivity="false">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </logger>
+    </springProfile>
+
+    <!-- local / default profile: human-readable text -->
+    <springProfile name="local | default">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.fintech" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
+
+    <!-- Always silence noisy frameworks regardless of profile -->
+    <logger name="org.hibernate.SQL"      level="INFO"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.apache.tomcat"       level="INFO"/>
+
+</configuration>

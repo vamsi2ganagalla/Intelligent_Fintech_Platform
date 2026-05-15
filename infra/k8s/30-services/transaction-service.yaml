@@ -34,6 +34,19 @@ spec:
                 name: fintech-config
             - secretRef:
                 name: fintech-secrets
+          env:
+            - name: VAULT_URI
+              value: "http://vault.vault.svc.cluster.local:8200"
+            - name: VAULT_ROLE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vault-approle-verifier
+                  key: role-id
+            - name: VAULT_SECRET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vault-approle-verifier
+                  key: secret-id
           resources:
             requests:
               memory: "384Mi"

@@ -10,6 +10,24 @@ spring:
     url: ${DB_USER_URL:jdbc:postgresql://localhost:5432/fintech_users}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+  cloud:
+    vault:
+      uri: ${VAULT_URI:http://vault.vault.svc.cluster.local:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${VAULT_ROLE_ID}
+        secret-id: ${VAULT_SECRET_ID}
+        app-auth-path: approle
+      kv:
+        enabled: true
+        backend: secret
+        default-context: fintech/jwt
+      fail-fast: true
+      config:
+        lifecycle:
+          enabled: true
+  config:
+    import: "vault://secret/fintech/jwt"
   jpa:
     open-in-view: false
     hibernate:
@@ -23,9 +41,9 @@ spring:
       fail-on-unknown-properties: true
 
 jwt:
-  secret: ${JWT_SECRET}
+  public-key: ${public_key}
+  kid: ${kid}
   expiration: ${JWT_EXPIRATION:3600000}
-
 # Actuator configuration (Fix #11)
 management:
   endpoints:

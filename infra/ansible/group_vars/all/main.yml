@@ -17,8 +17,8 @@ gitleaks_version: "8.21.2"
 trivy_version: "0.70.0"
 
 # Cluster sizing (minikube)
-minikube_memory: "4096"
-minikube_cpus: "2"
+minikube_memory: "8192"
+minikube_cpus: "4"
 minikube_driver: "docker"
 
 # Timezone

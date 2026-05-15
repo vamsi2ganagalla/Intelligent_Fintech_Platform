@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-init-script
+  namespace: vault
+data:
+  init.py: |
+    #!/usr/bin/env python3
+    import json, os, subprocess, sys, time
+    import urllib.request, urllib.error
+
+    VAULT_ADDR = os.environ.get("VAULT_ADDR", "http://vault.vault.svc.cluster.local:8200")
+    TOKEN = os.environ["VAULT_TOKEN"]
+
+    def vault(method, path, payload=None):
+        url = f"{VAULT_ADDR}/v1/{path}"
+        data = json.dumps(payload).encode() if payload else None
+        req = urllib.request.Request(url, data=data, method=method,
+              headers={"X-Vault-Token": TOKEN, "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req) as r:
+                body = r.read()
+                return json.loads(body) if body else {}
+        except urllib.error.HTTPError as e:
+            body = e.read().decode()
+            if e.code in (400, 204):
+                return {}
+            print(f"WARN {method} {path}: HTTP {e.code} {body}", file=sys.stderr)
+            return {}
+
+    # Wait for Vault to be ready
+    for i in range(30):
+        try:
+            urllib.request.urlopen(f"{VAULT_ADDR}/v1/sys/health", timeout=2)
+            print("Vault is up")
+            break
+        except:
+            print(f"Waiting for Vault... ({i+1}/30)")
+            time.sleep(2)
+
+    # Enable KV v2
+    mounts = vault("GET", "sys/mounts") or {}
+    if "secret/" not in mounts:
+        vault("POST", "sys/mounts/secret", {"type": "kv", "options": {"version": "2"}})
+        print("Enabled KV v2")
+    else:
+        print("KV v2 already enabled")
+
+    # Generate RSA keypair
+    priv = subprocess.run(["openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048"],
+                          capture_output=True, check=True).stdout.decode()
+    pub = subprocess.run(["openssl", "pkey", "-pubout"],
+                         input=priv.encode(), capture_output=True, check=True).stdout.decode()
+    print(f"Generated RSA-2048 keypair ({len(priv)} / {len(pub)} chars)")
+
+    vault("POST", "secret/data/fintech/jwt", {"data": {
+        "private_key": priv, "public_key": pub,
+        "kid": "fintech-rs256-auto", "algorithm": "RS256"
+    }})
+    print("Wrote keypair to secret/fintech/jwt")
+
+    # Enable AppRole
+    auth_methods = vault("GET", "sys/auth") or {}
+    if "approle/" not in auth_methods:
+        vault("POST", "sys/auth/approle", {"type": "approle"})
+        print("Enabled AppRole")
+    else:
+        print("AppRole already enabled")
+
+    # Policies
+    for name, path in [("fintech-auth-policy", "secret/data/fintech/jwt"),
+                       ("fintech-verifier-policy", "secret/data/fintech/jwt")]:
+        vault("PUT", f"sys/policies/acl/{name}",
+              {"policy": f'path "{path}" {{ capabilities = ["read"] }}'})
+        print(f"Wrote policy {name}")
+
+    # Roles
+    for role, policy in [("auth-service-role", "fintech-auth-policy"),
+                          ("verifier-role", "fintech-verifier-policy")]:
+        vault("POST", f"auth/approle/role/{role}",
+              {"token_policies": policy, "token_ttl": "1h", "token_max_ttl": "4h"})
+        print(f"Created role {role}")
+
+    print("Vault init complete.")
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init
+  namespace: vault
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: vault-init
+        image: python:3.11-slim
+        command: ["python3", "/scripts/init.py"]
+        env:
+        - name: VAULT_TOKEN
+          value: "root-token-dev-fintech-2026"
+        - name: VAULT_ADDR
+          value: "http://vault.vault.svc.cluster.local:8200"
+        volumeMounts:
+        - name: script
+          mountPath: /scripts
+      volumes:
+      - name: script
+        configMap:
+          name: vault-init-script

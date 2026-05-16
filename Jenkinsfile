@@ -197,9 +197,9 @@ pipeline {
                     sudo -u ${DEV_USER} -H kubectl rollout restart deployment \
                         auth-service user-service transaction-service
 
-                    sudo -u ${DEV_USER} -H kubectl rollout status deployment auth-service --timeout=180s
-                    sudo -u ${DEV_USER} -H kubectl rollout status deployment user-service --timeout=180s
-                    sudo -u ${DEV_USER} -H kubectl rollout status deployment transaction-service --timeout=180s
+                    sudo -u ${DEV_USER} -H kubectl rollout status deployment auth-service --timeout=300s
+                    sudo -u ${DEV_USER} -H kubectl rollout status deployment user-service --timeout=300s
+                    sudo -u ${DEV_USER} -H kubectl rollout status deployment transaction-service --timeout=300s
 
                     sudo -u ${DEV_USER} -H kubectl get pods
                 '''

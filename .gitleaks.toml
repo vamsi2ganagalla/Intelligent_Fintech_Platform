@@ -1,5 +1,5 @@
 [allowlist]
-  description = "PEM header string literals used in validation code — not actual keys"
+  description = "PEM header string literals in validation code are false positives"
   commits = [
     "02b7303c1f82f8e84bd099dccc22499869bd7def"
   ]
